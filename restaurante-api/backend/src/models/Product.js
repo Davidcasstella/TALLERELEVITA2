@@ -1,3 +1,57 @@
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Product:
+ *       type: object
+ *       required:
+ *         - name
+ *         - price
+ *         - category
+ *         - preparationTime
+ *       properties:
+ *         _id:
+ *           type: string
+ *         name:
+ *           type: string
+ *         description:
+ *           type: string
+ *         price:
+ *           type: number
+ *         category:
+ *           $ref: '#/components/schemas/Category'
+ *         ingredients:
+ *           type: array
+ *           items:
+ *             type: string
+ *         preparationTime:
+ *           type: number
+ *         image:
+ *           type: string
+ *         isVegetarian:
+ *           type: boolean
+ *         isVegan:
+ *           type: boolean
+ *         isGlutenFree:
+ *           type: boolean
+ *         spicyLevel:
+ *           type: number
+ *         isAvailable:
+ *           type: boolean
+ *         rating:
+ *           type: number
+ *         reviewCount:
+ *           type: number
+ *         popularity:
+ *           type: number
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+
 const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema({

@@ -1,19 +1,75 @@
 const Product = require('../models/Product');
 const Category = require('../models/Category');
-const cloudinary = require('cloudinary').v2;
 
 /**
- * Obtener lista de productos
+ * Obtener lista de productos con filtros
  */
 exports.getProducts = async (req, res) => {
   try {
-    const products = await Product.find()
+    const {
+      category,
+      available,
+      search,
+      minPrice,
+      maxPrice,
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      order = 'desc'
+    } = req.query;
+
+    // Construir filtros
+    let filter = {};
+
+    if (category) {
+      filter.category = category;
+    }
+
+    if (available !== undefined) {
+      filter.isAvailable = available === 'true';
+    }
+
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (minPrice || maxPrice) {
+      filter.price = {};
+      if (minPrice) filter.price.$gte = Number(minPrice);
+      if (maxPrice) filter.price.$lte = Number(maxPrice);
+    }
+
+    // Configurar ordenamiento
+    const sortOrder = order === 'desc' ? -1 : 1;
+    const sort = { [sortBy]: sortOrder };
+
+    // Configurar paginación
+    const skip = (page - 1) * limit;
+
+    // Obtener productos
+    const products = await Product.find(filter)
       .populate('category', 'name')
-      .sort({ createdAt: -1 });
-    
+      .sort(sort)
+      .skip(skip)
+      .limit(Number(limit));
+
+    // Contar total para paginación
+    const total = await Product.countDocuments(filter);
+    const totalPages = Math.ceil(total / limit);
+
     res.json({
       success: true,
-      data: products
+      data: products,
+      pagination: {
+        currentPage: Number(page),
+        totalPages,
+        total,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
     });
   } catch (error) {
     console.error('Error obteniendo productos:', error);
@@ -36,11 +92,10 @@ exports.getProductById = async (req, res) => {
       .exec();
     
     if (!product) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         message: 'Producto no encontrado'
       });
-      return;
     }
     
     res.json({
@@ -61,17 +116,20 @@ exports.getProductById = async (req, res) => {
  */
 exports.createProduct = async (req, res) => {
   try {
-    const { name, price, category, description, ingredients, preparationTime } = req.body;
+    const { 
+      name, 
+      price, 
+      category, 
+      description, 
+      ingredients, 
+      preparationTime,
+      isVegetarian,
+      isVegan,
+      isGlutenFree,
+      spicyLevel
+    } = req.body;
     
-    // Validar datos
-    if (!name || !price || !category) {
-      return res.status(400).json({
-        success: false,
-        message: 'Faltan datos obligatorios'
-      });
-    }
-    
-    // Verificar categoría
+    // Validar que la categoría existe
     const categoryExists = await Category.findById(category);
     if (!categoryExists) {
       return res.status(400).json({
@@ -80,31 +138,34 @@ exports.createProduct = async (req, res) => {
       });
     }
     
-    // Subir imagen a Cloudinary si existe
-    let imageUrl = null;
-    if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: 'restaurante/productos',
-        allowed_formats: ['jpg', 'png', 'jpeg'],
-        transformation: [
-          { width: 800, height: 800, crop: 'limit' }
-        ]
-      });
-      imageUrl = result.secure_url;
+    // Procesar ingredients si viene como string separado por comas
+    let processedIngredients = [];
+    if (ingredients) {
+      if (Array.isArray(ingredients)) {
+        processedIngredients = ingredients;
+      } else if (typeof ingredients === 'string') {
+        processedIngredients = ingredients.split(',').map(ing => ing.trim()).filter(ing => ing);
+      }
     }
     
     // Crear producto
     const newProduct = new Product({
       name,
-      price,
+      price: Number(price),
       category,
       description,
-      ingredients,
-      preparationTime,
-      image: imageUrl
+      ingredients: processedIngredients,
+      preparationTime: Number(preparationTime),
+      isVegetarian: isVegetarian === 'true' || isVegetarian === true,
+      isVegan: isVegan === 'true' || isVegan === true,
+      isGlutenFree: isGlutenFree === 'true' || isGlutenFree === true,
+      spicyLevel: spicyLevel ? Number(spicyLevel) : 0
     });
     
     await newProduct.save();
+    
+    // Poblar la categoría para la respuesta
+    await newProduct.populate('category', 'name');
     
     res.status(201).json({
       success: true,
@@ -126,18 +187,31 @@ exports.createProduct = async (req, res) => {
 exports.updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, price, category, description, ingredients, preparationTime } = req.body;
+    const { 
+      name, 
+      price, 
+      category, 
+      description, 
+      ingredients, 
+      preparationTime,
+      isVegetarian,
+      isVegan,
+      isGlutenFree,
+      spicyLevel,
+      isAvailable
+    } = req.body;
     
-    // Validar datos
-    if (!name && !price && !category && !description && !ingredients && !preparationTime && !req.file) {
-      return res.status(400).json({
+    // Verificar que el producto existe
+    const currentProduct = await Product.findById(id);
+    if (!currentProduct) {
+      return res.status(404).json({
         success: false,
-        message: 'No hay datos para actualizar'
+        message: 'Producto no encontrado'
       });
     }
     
     // Verificar categoría si se proporciona
-    if (category) {
+    if (category && category !== currentProduct.category.toString()) {
       const categoryExists = await Category.findById(category);
       if (!categoryExists) {
         return res.status(400).json({
@@ -147,57 +221,33 @@ exports.updateProduct = async (req, res) => {
       }
     }
     
-    // Buscar el producto actual
-    const currentProduct = await Product.findById(id);
-    if (!currentProduct) {
-      return res.status(404).json({
-        success: false,
-        message: 'Producto no encontrado'
-      });
-    }
+    // Preparar datos para actualizar
+    const updateData = {};
     
-    // Actualizar imagen en Cloudinary si se proporciona
-    let imageUrl = currentProduct.image; // Mantener la imagen actual por defecto
-    if (req.file) {
-      try {
-        // Eliminar imagen anterior de Cloudinary si existe
-        if (currentProduct.image) {
-          // Extraer el public_id de la URL de Cloudinary
-          const urlParts = currentProduct.image.split('/');
-          const filename = urlParts[urlParts.length - 1];
-          const publicId = `restaurante/productos/${filename.split('.')[0]}`;
-          
-          await cloudinary.uploader.destroy(publicId);
-        }
-        
-        // Subir nueva imagen
-        const result = await cloudinary.uploader.upload(req.file.path, {
-          folder: 'restaurante/productos',
-          allowed_formats: ['jpg', 'png', 'jpeg'],
-          transformation: [
-            { width: 800, height: 800, crop: 'limit' }
-          ]
-        });
-        imageUrl = result.secure_url;
-      } catch (cloudinaryError) {
-        console.error('Error con Cloudinary:', cloudinaryError);
-        // Continuar sin actualizar la imagen si hay error
+    if (name !== undefined) updateData.name = name;
+    if (price !== undefined) updateData.price = Number(price);
+    if (category !== undefined) updateData.category = category;
+    if (description !== undefined) updateData.description = description;
+    if (preparationTime !== undefined) updateData.preparationTime = Number(preparationTime);
+    if (isVegetarian !== undefined) updateData.isVegetarian = isVegetarian === 'true' || isVegetarian === true;
+    if (isVegan !== undefined) updateData.isVegan = isVegan === 'true' || isVegan === true;
+    if (isGlutenFree !== undefined) updateData.isGlutenFree = isGlutenFree === 'true' || isGlutenFree === true;
+    if (spicyLevel !== undefined) updateData.spicyLevel = Number(spicyLevel);
+    if (isAvailable !== undefined) updateData.isAvailable = isAvailable === 'true' || isAvailable === true;
+    
+    // Procesar ingredients si se proporciona
+    if (ingredients !== undefined) {
+      if (Array.isArray(ingredients)) {
+        updateData.ingredients = ingredients;
+      } else if (typeof ingredients === 'string') {
+        updateData.ingredients = ingredients.split(',').map(ing => ing.trim()).filter(ing => ing);
       }
     }
     
-    // Preparar datos para actualizar
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (price) updateData.price = price;
-    if (category) updateData.category = category;
-    if (description) updateData.description = description;
-    if (ingredients) updateData.ingredients = ingredients;
-    if (preparationTime) updateData.preparationTime = preparationTime;
-    if (imageUrl) updateData.image = imageUrl;
-    
     // Actualizar producto
     const updatedProduct = await Product.findByIdAndUpdate(id, updateData, { 
-      new: true 
+      new: true,
+      runValidators: true
     }).populate('category', 'name');
     
     res.json({
@@ -221,7 +271,7 @@ exports.deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Buscar el producto antes de eliminarlo
+    // Verificar que el producto existe
     const productToDelete = await Product.findById(id);
     
     if (!productToDelete) {
@@ -229,21 +279,6 @@ exports.deleteProduct = async (req, res) => {
         success: false,
         message: 'Producto no encontrado'
       });
-    }
-    
-    // Eliminar imagen de Cloudinary si existe
-    if (productToDelete.image) {
-      try {
-        // Extraer el public_id de la URL de Cloudinary
-        const urlParts = productToDelete.image.split('/');
-        const filename = urlParts[urlParts.length - 1];
-        const publicId = `restaurante/productos/${filename.split('.')[0]}`;
-        
-        await cloudinary.uploader.destroy(publicId);
-      } catch (cloudinaryError) {
-        console.error('Error eliminando imagen de Cloudinary:', cloudinaryError);
-        // Continuar con la eliminación del producto aunque falle la eliminación de la imagen
-      }
     }
     
     // Eliminar producto de la base de datos

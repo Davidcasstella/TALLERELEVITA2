@@ -135,9 +135,8 @@ const validateCategory = [
   handleValidationErrors
 ];
 
-/**
- * Validaciones para productos
- */
+// validación validateProduct en validationMiddleware.js con esto:
+
 const validateProduct = [
   body('name')
     .trim()
@@ -173,16 +172,30 @@ const validateProduct = [
       return true;
     }),
 
+  // Validación flexible para ingredients (array o string)
   body('ingredients')
     .optional()
-    .isArray()
-    .withMessage('Los ingredientes deben ser un array'),
-
-  body('ingredients.*')
-    .optional()
-    .trim()
-    .isLength({ max: 50 })
-    .withMessage('Un ingrediente no puede exceder 50 caracteres'),
+    .custom((value) => {
+      if (Array.isArray(value)) {
+        // Si es array, validar cada elemento
+        value.forEach(ingredient => {
+          if (typeof ingredient !== 'string' || ingredient.trim().length === 0) {
+            throw new Error('Cada ingrediente debe ser texto válido');
+          }
+          if (ingredient.length > 50) {
+            throw new Error('Un ingrediente no puede exceder 50 caracteres');
+          }
+        });
+      } else if (typeof value === 'string') {
+        // Si es string, validar formato
+        if (value.length > 500) {
+          throw new Error('La lista de ingredientes es demasiado larga');
+        }
+      } else {
+        throw new Error('Los ingredientes deben ser un array o string separado por comas');
+      }
+      return true;
+    }),
 
   body('preparationTime')
     .isInt({ min: 1, max: 180 })
@@ -190,22 +203,40 @@ const validateProduct = [
 
   body('isVegetarian')
     .optional()
-    .isBoolean()
+    .custom((value) => {
+      if (typeof value === 'string') {
+        return value === 'true' || value === 'false';
+      }
+      return typeof value === 'boolean';
+    })
     .withMessage('isVegetarian debe ser verdadero o falso'),
 
   body('isVegan')
     .optional()
-    .isBoolean()
+    .custom((value) => {
+      if (typeof value === 'string') {
+        return value === 'true' || value === 'false';
+      }
+      return typeof value === 'boolean';
+    })
     .withMessage('isVegan debe ser verdadero o falso'),
 
   body('isGlutenFree')
     .optional()
-    .isBoolean()
+    .custom((value) => {
+      if (typeof value === 'string') {
+        return value === 'true' || value === 'false';
+      }
+      return typeof value === 'boolean';
+    })
     .withMessage('isGlutenFree debe ser verdadero o falso'),
 
   body('spicyLevel')
     .optional()
-    .isInt({ min: 0, max: 5 })
+    .custom((value) => {
+      const num = Number(value);
+      return !isNaN(num) && num >= 0 && num <= 5;
+    })
     .withMessage('El nivel picante debe estar entre 0 y 5'),
 
   handleValidationErrors
