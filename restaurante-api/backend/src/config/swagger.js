@@ -38,7 +38,7 @@ const options = {
         description: 'Servidor de desarrollo'
       },
       {
-        url: 'https://tu-app.render.com',
+        url: 'https://tallerelevita2-1.onrender.com',
         description: 'Servidor de producción'
       }
     ],
@@ -65,6 +65,32 @@ const options = {
             isActive: { type: 'boolean', description: 'Si el usuario está activo' },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' }
+          }
+        },
+        RegisterRequest: {
+          type: 'object',
+          required: ['name', 'email', 'password', 'role'],
+          properties: {
+            name: {
+              type: 'string',
+              minLength: 2,
+              example: 'Juan Pérez'
+            },
+            email: {
+              type: 'string',
+              format: 'email',
+              example: 'juan@email.com'
+            },
+            password: {
+              type: 'string',
+              minLength: 6,
+              example: '123456'
+            },
+            role: {
+              type: 'string',
+              enum: ['customer', 'waiter', 'chef', 'admin'],
+              example: 'customer'
+            }
           }
         },
         Category: {
