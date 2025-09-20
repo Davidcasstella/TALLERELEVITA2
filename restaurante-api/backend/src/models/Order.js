@@ -26,23 +26,27 @@ const mongoose = require('mongoose');
  *                 type: string
  *                 description: Instrucciones especiales
  *           example:
- *             - product: "65f1234567890abcdef12345"
+ *             - product: "68cdf8fbb5bd4faf93afa7b8"
  *               quantity: 2
- *               specialInstructions: "Sin cebolla"
+ *               specialInstructions: "Sin albahaca"
+ *             - product: "68cf0bdae64146370975880b"
+ *               quantity: 1
+ *               specialInstructions: "Muy picante"
  *         tableNumber:
  *           type: number
  *           description: Número de mesa
- *           example: 5
+ *           example: 8
  *         notes:
  *           type: string
  *           description: Notas del pedido
- *           example: "Cliente con alergia a los mariscos"
+ *           example: "Para compartir"
  *         paymentMethod:
  *           type: string
  *           enum: [cash, card, transfer]
  *           description: Método de pago
- *           example: "card"
+ *           example: "cash"
  */
+
 
 const orderSchema = new mongoose.Schema({
   orderNumber: {

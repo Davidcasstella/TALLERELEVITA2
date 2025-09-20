@@ -375,9 +375,55 @@ exports.updateOrderStatus = async (req, res) => {
 };
 
 /**
- * Eliminar/Cancelar un pedido
+ * Eliminar completamente un pedido (no solo cancelar)
  */
 exports.deleteOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pedido no encontrado'
+      });
+    }
+
+    // Restricción: Solo se pueden eliminar pedidos pendientes o cancelados
+    if (['preparing', 'ready', 'delivered'].includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'No se puede eliminar un pedido que está siendo preparado, listo o entregado. Solo pedidos pendientes o cancelados.'
+      });
+    }
+
+    // Eliminar los OrderItems asociados
+    await OrderItem.deleteMany({ _id: { $in: order.items } });
+
+    // Eliminar el pedido completamente
+    await Order.findByIdAndDelete(req.params.id);
+
+    res.json({
+      success: true,
+      message: 'Pedido eliminado completamente del sistema',
+      deletedOrder: {
+        id: order._id,
+        orderNumber: order.orderNumber,
+        status: order.status
+      }
+    });
+  } catch (error) {
+    console.error('Error al eliminar pedido:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+/**
+ * Nuevo método para cancelar pedido (mantener en el sistema pero cancelado)
+ */
+exports.cancelOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
 
@@ -396,15 +442,23 @@ exports.deleteOrder = async (req, res) => {
       });
     }
 
-    // Cancelar el pedido en lugar de eliminarlo
+    if (order.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'El pedido ya está cancelado'
+      });
+    }
+
+    // Cancelar el pedido usando el método del modelo
     await order.updateStatus('cancelled', req.user._id);
 
     res.json({
       success: true,
-      message: 'Pedido cancelado exitosamente'
+      message: 'Pedido cancelado exitosamente',
+      data: order
     });
   } catch (error) {
-    console.error('Error al eliminar pedido:', error);
+    console.error('Error al cancelar pedido:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
