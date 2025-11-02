@@ -74,8 +74,7 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Extraer el token
-    const token = authHeader.substring(7); // Remover "Bearer "
+    const token = authHeader.substring(7); 
 
     if (!token) {
       return res.status(401).json({
@@ -84,7 +83,7 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // 2. Verificar y decodificar el token
+   
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);

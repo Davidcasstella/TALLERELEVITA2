@@ -8,7 +8,7 @@ const {
   deleteCategory 
 } = require('../controllers/categoryController');
 
-// Importar middlewares
+
 const { authenticateToken } = require('../middleware/authMiddleware');
 const { requireAdmin, requireMenuManagement } = require('../middleware/roleMiddleware');
 const { validateCategory, validateObjectId } = require('../middleware/validationMiddleware');

@@ -1,0 +1,65 @@
+{
+  "compilerOptions": {
+    /* Configuración de Lenguaje */
+    "target": "ES2020",                          // Versión de JavaScript a compilar
+    "module": "commonjs",                        // Sistema de módulos (Node.js usa CommonJS)
+    "lib": ["ES2020"],                           // Librerías disponibles
+    "allowJs": true,                             // Permite archivos .js durante la migración
+    "checkJs": false,                            // No verificar archivos .js
+    
+    /* Configuración de Módulos */
+    "moduleResolution": "node",                  // Resolución de módulos estilo Node.js
+    "resolveJsonModule": true,                   // Permite importar archivos .json
+    "esModuleInterop": true,                     // Compatibilidad con imports ES6
+    "allowSyntheticDefaultImports": true,        // Permite imports default sintéticos
+    
+    /* Configuración de Salida */
+    "outDir": "./dist",                          // Carpeta de salida compilada
+    "rootDir": "./src",                          // Carpeta raíz del código fuente
+    "removeComments": true,                      // Eliminar comentarios en producción
+    "sourceMap": true,                           // Generar source maps para debugging
+    
+    /* Configuración de Tipos */
+    "strict": true,                              // Modo estricto de TypeScript
+    "noImplicitAny": true,                       // Error si hay 'any' implícito
+    "strictNullChecks": true,                    // Verificación estricta de null/undefined
+    "strictFunctionTypes": true,                 // Verificación estricta de tipos de función
+    "strictPropertyInitialization": true,        // Props de clase deben inicializarse
+    "noImplicitThis": true,                      // Error si 'this' tiene tipo implícito
+    "alwaysStrict": true,                        // Usar 'use strict'
+    
+    /* Verificaciones Adicionales */
+    "noUnusedLocals": true,                      // Error en variables locales no usadas
+    "noUnusedParameters": true,                  // Error en parámetros no usados
+    "noImplicitReturns": true,                   // Error si no todos los paths retornan
+    "noFallthroughCasesInSwitch": true,         // Error en switch sin break
+    "skipLibCheck": true,                        // Saltar verificación de archivos .d.ts
+    "forceConsistentCasingInFileNames": true,   // Forzar case-sensitive en imports
+    
+    /* Decoradores y Metadata */
+    "experimentalDecorators": true,              // Habilitar decoradores experimentales
+    "emitDecoratorMetadata": true,               // Emitir metadata para decoradores
+    
+    /* Configuración de Path Aliases */
+    "baseUrl": "./",
+    "paths": {
+      "@models/*": ["src/models/*"],
+      "@controllers/*": ["src/controllers/*"],
+      "@middleware/*": ["src/middleware/*"],
+      "@routes/*": ["src/routes/*"],
+      "@config/*": ["src/config/*"],
+      "@utils/*": ["src/utils/*"],
+      "@types/*": ["src/types/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",                               // Incluir todos los archivos .ts
+    "src/**/*.js"                                // Incluir .js durante migración
+  ],
+  "exclude": [
+    "node_modules",                              // Excluir dependencias
+    "dist",                                      // Excluir código compilado
+    "**/*.spec.ts",                              // Excluir tests
+    "**/*.test.ts"
+  ]
+}

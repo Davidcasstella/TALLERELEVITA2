@@ -3,15 +3,15 @@ const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
 const helmet = require('helmet');
-const connectDB = require('./src/config/database');
+const connectDB = require('./config/database');
 
 // Rutas
-const userRoutes = require('./src/routes/users');
-const productRoutes = require('./src/routes/products');
-const orderRoutes = require('./src/routes/orders');
-const orderItemRoutes = require('./src/routes/orderItems');
-const categoryRoutes = require('./src/routes/categories');
-const authRoutes = require('./src/routes/auth');
+const userRoutes = require('./routes/users');
+const productRoutes = require('./routes/products');
+const orderRoutes = require('./routes/orders');
+const orderItemRoutes = require('./routes/orderItems');
+const categoryRoutes = require('./routes/categories');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -71,7 +71,7 @@ app.use('/api/auth', authRoutes);
 
 // Swagger docs
 const swaggerUi = require('swagger-ui-express');
-const swaggerSpecs = require('./src/config/swagger');
+const swaggerSpecs = require('./config/swagger');
 
 // Configuración personalizada de Swagger
 const swaggerOptions = {
