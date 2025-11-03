@@ -65,137 +65,153 @@ categorySchema.virtual('productCount', {
 // ==================== MÉTODOS ESTÁTICOS ====================
 
 /**
- * Clase de servicio para operaciones de Categoría
+ * Busca categoría por nombre (case insensitive)
  */
-class CategoryService {
-  /**
-   * Busca categoría por nombre (case insensitive)
-   */
-  static async findByName(name: string): Promise<ICategory | null> {
-    return await Category.findOne({ 
-      name: { $regex: new RegExp(`^${name}$`, 'i') } 
-    });
-  }
+categorySchema.statics.findByName = async function(name: string) {
+  return await this.findOne({ 
+    name: { $regex: new RegExp(`^${name}$`, 'i') } 
+  });
+};
 
-  /**
-   * Obtiene categorías activas ordenadas
-   */
-  static async getActive(): Promise<ICategory[]> {
-    return await Category.find({ isActive: true })
-      .sort({ sortOrder: 1, createdAt: -1 });
-  }
+/**
+ * Obtiene categorías activas ordenadas
+ */
+categorySchema.statics.getActive = async function() {
+  return await this.find({ isActive: true })
+    .sort({ sortOrder: 1, createdAt: -1 });
+};
 
-  /**
-   * Obtiene todas las categorías con conteo de productos
-   */
-  static async getAllWithProductCount(): Promise<ICategory[]> {
-    return await Category.find()
-      .populate('productCount')
-      .sort({ sortOrder: 1 });
-  }
-
-  /**
-   * Verifica si una categoría tiene productos asociados
-   */
-  static async hasProducts(categoryId: string): Promise<boolean> {
-    const Product = mongoose.model('Product');
-    const count = await Product.countDocuments({ category: categoryId });
-    return count > 0;
-  }
-
-  /**
-   * Valida que el nombre sea único
-   */
-  static async isNameUnique(name: string, excludeId?: string): Promise<boolean> {
-    const query: any = { name: { $regex: new RegExp(`^${name}$`, 'i') } };
-    if (excludeId) {
-      query._id = { $ne: excludeId };
-    }
-    const existing = await Category.findOne(query);
-    return !existing;
-  }
-
-  /**
-   * Soft delete: desactiva categoría
-   */
-  static async softDelete(categoryId: string): Promise<void> {
-    const category = await Category.findById(categoryId);
-    if (!category) {
-      throw new Error(ERROR_MESSAGES.CATEGORY_NOT_FOUND);
-    }
-
-    // Verificar si tiene productos
-    const hasProducts = await this.hasProducts(categoryId);
-    if (hasProducts) {
-      throw new Error('No se puede eliminar una categoría con productos asociados');
-    }
-
-    category.isActive = false;
-    await category.save();
-  }
-
-  /**
-   * Reordena categorías
-   */
-  static async reorder(categoryIds: string[]): Promise<void> {
-    const updates = categoryIds.map((id, index) => ({
-      updateOne: {
-        filter: { _id: id },
-        update: { sortOrder: index }
+/**
+ * Obtiene todas las categorías con conteo de productos
+ */
+categorySchema.statics.getAllWithProductCount = async function() {
+  return await this.aggregate([
+    {
+      $lookup: {
+        from: 'products',
+        localField: '_id',
+        foreignField: 'category',
+        as: 'products'
       }
-    }));
+    },
+    {
+      $addFields: {
+        productCount: { $size: '$products' }
+      }
+    },
+    {
+      $project: {
+        products: 0
+      }
+    },
+    {
+      $sort: { sortOrder: 1, createdAt: -1 }
+    }
+  ]);
+};
 
-    await Category.bulkWrite(updates);
+/**
+ * Verifica si una categoría tiene productos asociados
+ */
+categorySchema.statics.hasProducts = async function(categoryId: string) {
+  const Product = mongoose.model('Product');
+  const count = await Product.countDocuments({ category: categoryId });
+  return count > 0;
+};
+
+/**
+ * Valida que el nombre sea único
+ */
+categorySchema.statics.isNameUnique = async function(
+  name: string, 
+  excludeId?: string
+) {
+  const query: any = { 
+    name: { $regex: new RegExp(`^${name}$`, 'i') } 
+  };
+  
+  if (excludeId) {
+    query._id = { $ne: excludeId };
+  }
+  
+  const existing = await this.findOne(query);
+  return !existing;
+};
+
+/**
+ * Soft delete: desactiva categoría
+ */
+categorySchema.statics.softDelete = async function(categoryId: string) {
+  const category = await this.findById(categoryId);
+  if (!category) {
+    throw new Error(ERROR_MESSAGES.CATEGORY_NOT_FOUND);
   }
 
-  /**
-   * Obtiene estadísticas de categorías
-   */
-  static async getStats(): Promise<{
-    total: number;
-    active: number;
-    inactive: number;
-    withProducts: number;
-  }> {
-    const [total, active, withProducts] = await Promise.all([
-      Category.countDocuments(),
-      Category.countDocuments({ isActive: true }),
-      Category.aggregate([
-        {
-          $lookup: {
-            from: 'products',
-            localField: '_id',
-            foreignField: 'category',
-            as: 'products'
-          }
-        },
-        {
-          $match: {
-            'products.0': { $exists: true }
-          }
-        },
-        { $count: 'count' }
-      ]).then(result => result[0]?.count || 0)
-    ]);
-
-    return {
-      total,
-      active,
-      inactive: total - active,
-      withProducts
-    };
+  // Verificar si tiene productos usando el modelo Product directamente
+  const Product = mongoose.model('Product');
+  const productCount = await Product.countDocuments({ category: categoryId });
+  
+  if (productCount > 0) {
+    throw new Error('No se puede eliminar una categoría con productos asociados');
   }
-}
 
-// Agregar métodos estáticos al schema
-categorySchema.statics = Object.assign(categorySchema.statics, CategoryService);
+  category.isActive = false;
+  await category.save();
+};
 
-// ==================== MODELO ====================
+/**
+ * Reordena categorías
+ */
+categorySchema.statics.reorder = async function(categoryIds: string[]) {
+  const updates = categoryIds.map((id, index) => ({
+    updateOne: {
+      filter: { _id: id },
+      update: { sortOrder: index }
+    }
+  }));
+
+  await this.bulkWrite(updates);
+};
+
+/**
+ * Obtiene estadísticas de categorías
+ */
+categorySchema.statics.getStats = async function() {
+  const [total, active, withProducts] = await Promise.all([
+    this.countDocuments(),
+    this.countDocuments({ isActive: true }),
+    this.aggregate([
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: 'category',
+          as: 'products'
+        }
+      },
+      {
+        $match: {
+          'products.0': { $exists: true }
+        }
+      },
+      { $count: 'count' }
+    ]).then((result: any[]) => result[0]?.count || 0)
+  ]);
+
+  return {
+    total,
+    active,
+    inactive: total - active,
+    withProducts
+  };
+};
+
+// ==================== INTERFAZ DEL MODELO ====================
 
 interface ICategoryModel extends Model<ICategory> {
   findByName(name: string): Promise<ICategory | null>;
   getActive(): Promise<ICategory[]>;
-  getAllWithProductCount(): Promise<ICategory[]>;
+  getAllWithProductCount(): Promise<any[]>;
   hasProducts(categoryId: string): Promise<boolean>;
   isNameUnique(name: string, excludeId?: string): Promise<boolean>;
   softDelete(categoryId: string): Promise<void>;
@@ -207,6 +223,8 @@ interface ICategoryModel extends Model<ICategory> {
     withProducts: number;
   }>;
 }
+
+// ==================== MODELO ====================
 
 const Category = mongoose.model<ICategory, ICategoryModel>('Category', categorySchema);
 

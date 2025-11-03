@@ -2,6 +2,8 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import helmet from 'helmet';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpecs from './config/swagger';
 
 // Rutas
 import authRoutes from './routes/auth';
@@ -21,6 +23,7 @@ class App {
     this.app = express();
     this.configureMiddlewares();
     this.configureRoutes();
+    this.configureSwagger();
     this.configureErrorHandling();
   }
 
@@ -28,7 +31,7 @@ class App {
    * Configurar middlewares básicos
    */
   private configureMiddlewares(): void {
-    // Seguridad
+    // Seguridad con Helmet
     this.app.use(helmet({
       contentSecurityPolicy: {
         directives: {
@@ -65,15 +68,18 @@ class App {
       }
     }));
 
-    // CORS
+    // CORS - Permitir todas las solicitudes
     this.app.use(cors());
 
-    // Logging
+    // Logging de peticiones HTTP
     this.app.use(morgan('dev'));
 
     // Body parsers
-    this.app.use(express.json());
-    this.app.use(express.urlencoded({ extended: true }));
+    this.app.use(express.json({ limit: '10mb' }));
+    this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+    // Archivos estáticos (si tienes carpeta public)
+    this.app.use(express.static('public'));
   }
 
   /**
@@ -83,16 +89,47 @@ class App {
     // Ruta raíz con información útil
     this.app.get('/', (_req: Request, res: Response) => {
       res.json({
-        message: 'API Restaurante funcionando correctamente',
-        documentation: '/api/docs',
-        version: '1.0.0',
+        message: '🍕 API Restaurante funcionando correctamente',
+        documentation: '/api-docs',
+        version: '2.0.0',
+        author: 'David',
         endpoints: {
-          authentication: '/api/auth',
-          users: '/api/users',
-          products: '/api/products',
-          orders: '/api/orders',
-          categories: '/api/categories',
-          orderItems: '/api/order-items'
+          authentication: {
+            login: 'POST /api/auth/login',
+            register: 'POST /api/auth/register',
+            profile: 'GET /api/auth/profile'
+          },
+          users: {
+            list: 'GET /api/users',
+            getById: 'GET /api/users/:id',
+            update: 'PUT /api/users/:id',
+            delete: 'DELETE /api/users/:id'
+          },
+          categories: {
+            list: 'GET /api/categories',
+            create: 'POST /api/categories',
+            getById: 'GET /api/categories/:id',
+            update: 'PUT /api/categories/:id',
+            delete: 'DELETE /api/categories/:id'
+          },
+          products: {
+            list: 'GET /api/products',
+            create: 'POST /api/products',
+            getById: 'GET /api/products/:id',
+            update: 'PUT /api/products/:id',
+            delete: 'DELETE /api/products/:id'
+          },
+          orders: {
+            list: 'GET /api/orders',
+            create: 'POST /api/orders',
+            getById: 'GET /api/orders/:id',
+            update: 'PUT /api/orders/:id',
+            stats: 'GET /api/orders/stats'
+          },
+          orderItems: {
+            list: 'GET /api/order-items',
+            getById: 'GET /api/order-items/:id'
+          }
         },
         status: 'OK',
         timestamp: new Date().toISOString()
@@ -102,9 +139,11 @@ class App {
     // Ruta de salud
     this.app.get('/health', (_req: Request, res: Response) => {
       res.json({
-        status: 'OK',
+        status: 'healthy',
         timestamp: new Date().toISOString(),
-        uptime: process.uptime()
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        environment: process.env.NODE_ENV || 'development'
       });
     });
 
@@ -118,26 +157,84 @@ class App {
   }
 
   /**
+   * Configurar Swagger UI
+   */
+  private configureSwagger(): void {
+    const swaggerOptions = {
+      explorer: true,
+      swaggerOptions: {
+        persistAuthorization: true,
+        displayRequestDuration: true,
+        filter: true,
+        showExtensions: true,
+        showCommonExtensions: true,
+        docExpansion: 'none',
+        defaultModelsExpandDepth: 1,
+        defaultModelExpandDepth: 1
+      },
+      customCss: '.swagger-ui .topbar { display: none }',
+      customSiteTitle: 'Restaurante API - Documentación'
+    };
+
+    // Ruta de documentación Swagger
+    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, swaggerOptions));
+
+    // Redirección adicional
+    this.app.get('/docs', (_req: Request, res: Response) => {
+      res.redirect('/api-docs');
+    });
+  }
+
+  /**
    * Configurar manejo de errores
    */
   private configureErrorHandling(): void {
-    // Manejo de errores 404
+    // Manejo de errores 404 - Ruta no encontrada
     this.app.use((_req: Request, res: Response) => {
       res.status(404).json({
         success: false,
         message: 'Ruta no encontrada',
-        availableEndpoints: '/api/docs'
+        error: 'NOT_FOUND',
+        availableEndpoints: '/api-docs',
+        timestamp: new Date().toISOString()
       });
     });
 
     // Manejo de errores generales
-    this.app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
-      console.error('Error:', error);
+    // ✅ SOLUCIÓN: Agregar `: void` al tipo de retorno del handler
+    this.app.use((error: Error, _req: Request, res: Response, _next: NextFunction): void => {
+      console.error('❌ Error capturado:', error);
+      
+      // Error de validación de Mongoose
+      if (error.name === 'ValidationError') {
+        res.status(400).json({
+          success: false,
+          message: 'Error de validación',
+          error: process.env.NODE_ENV === 'development' ? error.message : 'Datos inválidos',
+          timestamp: new Date().toISOString()
+        });
+        return; // ✅ Agregar return explícito
+      }
+
+      // Error de Cast de Mongoose (ID inválido)
+      if (error.name === 'CastError') {
+        res.status(400).json({
+          success: false,
+          message: 'ID inválido',
+          error: process.env.NODE_ENV === 'development' ? error.message : 'Formato de ID incorrecto',
+          timestamp: new Date().toISOString()
+        });
+        return; // ✅ Agregar return explícito
+      }
+
+      // Error genérico
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno'
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno',
+        timestamp: new Date().toISOString()
       });
+      // ✅ Ya no necesita return aquí porque es la última instrucción
     });
   }
 

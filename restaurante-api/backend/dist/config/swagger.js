@@ -1,5 +1,9 @@
 "use strict";
-const swaggerJsdoc = require('swagger-jsdoc');
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
 const options = {
     definition: {
         openapi: '3.0.0',
@@ -61,7 +65,11 @@ const options = {
                         email: { type: 'string', format: 'email', description: 'Email único del usuario' },
                         phone: { type: 'string', description: 'Teléfono del usuario' },
                         address: { type: 'string', description: 'Dirección del usuario' },
-                        role: { type: 'string', enum: ['customer', 'waiter', 'chef', 'admin'], description: 'Rol del usuario en el sistema' },
+                        role: {
+                            type: 'string',
+                            enum: ['customer', 'waiter', 'chef', 'admin'],
+                            description: 'Rol del usuario en el sistema'
+                        },
                         isActive: { type: 'boolean', description: 'Si el usuario está activo' },
                         createdAt: { type: 'string', format: 'date-time' },
                         updatedAt: { type: 'string', format: 'date-time' }
@@ -117,7 +125,11 @@ const options = {
                         price: { type: 'number', description: 'Precio del producto' },
                         category: { $ref: '#/components/schemas/Category' },
                         image: { type: 'string', description: 'URL de la imagen del producto' },
-                        ingredients: { type: 'array', items: { type: 'string' }, description: 'Lista de ingredientes' },
+                        ingredients: {
+                            type: 'array',
+                            items: { type: 'string' },
+                            description: 'Lista de ingredientes'
+                        },
                         preparationTime: { type: 'number', description: 'Tiempo de preparación en minutos' },
                         isVegetarian: { type: 'boolean', description: '¿Es vegetariano?' },
                         isVegan: { type: 'boolean', description: '¿Es vegano?' },
@@ -183,7 +195,10 @@ const options = {
                                         properties: {
                                             _id: { type: 'string', example: '68cdf8fbb5bd4faf93afa7b8' },
                                             name: { type: 'string', example: 'Pizza Margherita' },
-                                            description: { type: 'string', example: 'Pizza clásica con tomate, mozzarella y albahaca' },
+                                            description: {
+                                                type: 'string',
+                                                example: 'Pizza clásica con tomate, mozzarella y albahaca'
+                                            },
                                             preparationTime: { type: 'integer', example: 15 },
                                             isAvailable: { type: 'boolean', example: true }
                                         }
@@ -227,7 +242,11 @@ const options = {
                         notes: { type: 'string', example: 'Para compartir' },
                         estimatedPreparationTime: { type: 'integer', example: 30 },
                         actualPreparationTime: { type: 'integer', nullable: true, example: null },
-                        orderDate: { type: 'string', format: 'date-time', example: '2025-09-20T22:04:20.706Z' },
+                        orderDate: {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2025-09-20T22:04:20.706Z'
+                        },
                         confirmedAt: { type: 'string', format: 'date-time', nullable: true },
                         readyAt: { type: 'string', format: 'date-time', nullable: true },
                         deliveredAt: { type: 'string', format: 'date-time', nullable: true },
@@ -365,10 +384,12 @@ const options = {
             }]
     },
     apis: [
-        './src/routes/*.js',
-        './src/models/*.js'
+        './src/routes/*.ts',
+        './src/models/*.ts',
+        './dist/routes/*.js',
+        './dist/models/*.js'
     ]
 };
-const specs = swaggerJsdoc(options);
-module.exports = specs;
+const specs = (0, swagger_jsdoc_1.default)(options);
+exports.default = specs;
 //# sourceMappingURL=swagger.js.map

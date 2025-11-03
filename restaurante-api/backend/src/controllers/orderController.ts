@@ -13,6 +13,7 @@ import { IOrder } from '../types/interfaces';
 interface CreateOrderItem {
   product: string;
   quantity: number;
+  price?: number;
   specialInstructions?: string;
   modifications?: Array<{
     type: string;
@@ -27,6 +28,7 @@ interface CreateOrderRequest {
   notes?: string;
   customerNotes?: string;
   paymentMethod?: string;
+  total?: number;
 }
 
 /**
@@ -61,20 +63,30 @@ class OrderController {
 
       const [orders, total] = await Promise.all([
         Order.find(query)
+          .populate('customer', 'name email')
+          .populate({
+            path: 'items',
+            populate: {
+              path: 'product',
+              select: 'name price image category'
+            }
+          })
           .skip(skip)
           .limit(Number(limit))
-          .sort({ orderDate: -1 }),
+          .sort({ createdAt: -1 }),
         Order.countDocuments(query)
       ]);
 
       res.status(200).json({
         success: true,
-        data: orders,
-        pagination: {
-          total,
-          page: Number(page),
-          pages: Math.ceil(total / Number(limit)),
-          limit: Number(limit)
+        data: {
+          orders,
+          pagination: {
+            total,
+            page: Number(page),
+            pages: Math.ceil(total / Number(limit)),
+            limit: Number(limit)
+          }
         }
       });
     } catch (error: any) {
@@ -96,7 +108,15 @@ class OrderController {
     try {
       const { id } = req.params;
 
-      const order = await Order.findById(id);
+      const order = await Order.findById(id)
+        .populate('customer', 'name email')
+        .populate({
+          path: 'items',
+          populate: {
+            path: 'product',
+            select: 'name price image category'
+          }
+        });
 
       if (!order) {
         res.status(404).json({
@@ -136,6 +156,10 @@ class OrderController {
    * @access  Private
    */
   static async createOrder(req: AuthRequest, res: Response): Promise<void> {
+    console.log('🔵 Iniciando creación de pedido...');
+    console.log('📦 Usuario autenticado:', req.user);
+    console.log('📦 Datos recibidos:', JSON.stringify(req.body, null, 2));
+
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -143,8 +167,20 @@ class OrderController {
       const orderData: CreateOrderRequest = req.body;
       const { items, tableNumber, notes, customerNotes, paymentMethod } = orderData;
 
-      // Validaciones
+      // Validar que el usuario esté autenticado
+      if (!req.user || !req.user._id) {
+        console.error('❌ Usuario no autenticado');
+        await session.abortTransaction();
+        res.status(401).json({
+          success: false,
+          message: 'Usuario no autenticado'
+        });
+        return;
+      }
+
+      // Validaciones básicas
       if (!items || !Array.isArray(items) || items.length === 0) {
+        console.error('❌ No hay items en el pedido');
         await session.abortTransaction();
         res.status(400).json({
           success: false,
@@ -154,6 +190,7 @@ class OrderController {
       }
 
       if (!tableNumber) {
+        console.error('❌ Falta número de mesa');
         await session.abortTransaction();
         res.status(400).json({
           success: false,
@@ -162,14 +199,32 @@ class OrderController {
         return;
       }
 
-      // Crear order items
+      console.log('✅ Validaciones básicas pasadas');
+      console.log('📋 Procesando', items.length, 'items...');
+
+      // Crear order items y calcular total
       const orderItems: any[] = [];
       let subtotal = 0;
 
-      for (const item of items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        console.log(`📦 Procesando item ${i + 1}:`, item);
+
+        // Validar que el item tenga producto
+        if (!item.product) {
+          console.error(`❌ Item ${i + 1} no tiene producto`);
+          await session.abortTransaction();
+          res.status(400).json({
+            success: false,
+            message: `Item ${i + 1} no tiene producto asociado`
+          });
+          return;
+        }
+
         const product = await Product.findById(item.product);
 
         if (!product) {
+          console.error(`❌ Producto ${item.product} no encontrado`);
           await session.abortTransaction();
           res.status(404).json({
             success: false,
@@ -178,7 +233,10 @@ class OrderController {
           return;
         }
 
+        console.log(`✅ Producto encontrado: ${product.name} - $${product.price}`);
+
         if (!product.isAvailable) {
+          console.error(`❌ Producto ${product.name} no disponible`);
           await session.abortTransaction();
           res.status(400).json({
             success: false,
@@ -187,21 +245,34 @@ class OrderController {
           return;
         }
 
+        // Validar cantidad
+        if (!item.quantity || item.quantity < 1) {
+          console.error(`❌ Cantidad inválida para ${product.name}`);
+          await session.abortTransaction();
+          res.status(400).json({
+            success: false,
+            message: 'La cantidad debe ser al menos 1'
+          });
+          return;
+        }
+
         const itemSubtotal = product.price * item.quantity;
         subtotal += itemSubtotal;
+
+        console.log(`💰 Subtotal del item: $${itemSubtotal}`);
 
         const orderItemData = {
           product: product._id,
           productSnapshot: {
             name: product.name,
-            description: product.description,
-            image: product.image,
+            description: product.description || '',
+            image: product.image || '',
             category: product.category
           },
           quantity: item.quantity,
           unitPrice: product.price,
           subtotal: itemSubtotal,
-          specialInstructions: item.specialInstructions,
+          specialInstructions: item.specialInstructions || '',
           modifications: item.modifications || []
         };
 
@@ -212,37 +283,51 @@ class OrderController {
       const tax = subtotal * 0.19; // 19% IVA
       const totalAmount = subtotal + tax;
 
+      console.log('💰 Cálculos finales:');
+      console.log('   Subtotal:', subtotal);
+      console.log('   IVA (19%):', tax);
+      console.log('   Total:', totalAmount);
+
       // Crear pedido
       const orderDoc: Partial<IOrder> = {
-        customer: req.user!._id as any,
+        orderNumber: `ORD-${Date.now()}`,
+        customer: req.user._id as any,
         tableNumber,
         subtotal,
         tax,
         totalAmount,
         paymentMethod: paymentMethod as any || 'pending',
-        notes,
-        customerNotes,
+        notes: notes || '',
+        customerNotes: customerNotes || '',
         status: OrderStatus.PENDING,
         paymentStatus: PaymentStatus.PENDING
       };
 
+      console.log('📝 Creando documento de pedido...');
       const [order] = await Order.create([orderDoc], { session });
+      console.log('✅ Pedido creado con ID:', order._id);
 
       // Crear order items y asociarlos
+      console.log('📝 Creando items del pedido...');
       const createdItems = await Promise.all(
         orderItems.map(itemData =>
           OrderItem.create([{ ...itemData, order: order._id }], { session })
         )
       );
+      console.log('✅ Items creados:', createdItems.length);
 
       // Actualizar order con los items
       order.items = createdItems.map(([item]) => item._id) as any;
       await order.save({ session });
+      console.log('✅ Pedido actualizado con items');
 
-      // Calcular tiempo estimado
-      await order.calculateEstimatedTime();
+      // ✅ COMENTAR calculateEstimatedTime si no existe en tu modelo
+      // Si tienes el método, descomenta la siguiente línea:
+      // await order.calculateEstimatedTime();
+      console.log('⏭️  Saltando calculateEstimatedTime (no implementado)');
 
       // Incrementar popularidad de productos
+      console.log('📈 Actualizando popularidad de productos...');
       await Promise.all(
         items.map(item =>
           Product.findByIdAndUpdate(item.product, { $inc: { popularity: item.quantity } })
@@ -250,21 +335,158 @@ class OrderController {
       );
 
       await session.commitTransaction();
+      console.log('✅ Transacción completada exitosamente');
 
       // Obtener el pedido completo con populate
-      const fullOrder = await Order.findById(order._id);
+      const fullOrder = await Order.findById(order._id)
+        .populate('customer', 'name email')
+        .populate({
+          path: 'items',
+          populate: {
+            path: 'product',
+            select: 'name price image category'
+          }
+        });
+
+      console.log('✅ Pedido completo obtenido');
 
       res.status(201).json({
         success: true,
         message: 'Pedido creado exitosamente',
         data: fullOrder
       });
+
+      console.log('✅ Respuesta enviada al cliente');
     } catch (error: any) {
       await session.abortTransaction();
-      console.error('Error en createOrder:', error);
+      console.error('❌ ERROR COMPLETO en createOrder:', error);
+      console.error('❌ Stack:', error.stack);
       res.status(500).json({
         success: false,
         message: 'Error al crear pedido',
+        error: error.message
+      });
+    } finally {
+      session.endSession();
+    }
+  }
+
+  /**
+   * @desc    Actualizar pedido completo
+   * @route   PUT /api/orders/:id
+   * @access  Private/Waiter/Admin
+   */
+  static async updateOrder(req: AuthRequest, res: Response): Promise<void> {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const { id } = req.params;
+      const { items, tableNumber, notes, paymentMethod, status } = req.body;
+
+      const order = await Order.findById(id);
+
+      if (!order) {
+        await session.abortTransaction();
+        res.status(404).json({
+          success: false,
+          message: 'Pedido no encontrado'
+        });
+        return;
+      }
+
+      // Verificar permisos
+      if (req.user?.role === UserRole.CUSTOMER && 
+          order.customer.toString() !== req.user._id.toString()) {
+        await session.abortTransaction();
+        res.status(403).json({
+          success: false,
+          message: 'No autorizado'
+        });
+        return;
+      }
+
+      // Si hay items nuevos, eliminar los antiguos y crear nuevos
+      if (items && Array.isArray(items)) {
+        await OrderItem.deleteMany({ order: order._id }, { session });
+
+        const orderItems: any[] = [];
+        let subtotal = 0;
+
+        for (const item of items) {
+          const product = await Product.findById(item.product);
+
+          if (!product) {
+            await session.abortTransaction();
+            res.status(404).json({
+              success: false,
+              message: `Producto ${item.product} no encontrado`
+            });
+            return;
+          }
+
+          const itemSubtotal = product.price * item.quantity;
+          subtotal += itemSubtotal;
+
+          const orderItemData = {
+            order: order._id,
+            product: product._id,
+            productSnapshot: {
+              name: product.name,
+              description: product.description,
+              image: product.image,
+              category: product.category
+            },
+            quantity: item.quantity,
+            unitPrice: product.price,
+            subtotal: itemSubtotal,
+            specialInstructions: item.specialInstructions || ''
+          };
+
+          orderItems.push(orderItemData);
+        }
+
+        const createdItems = await OrderItem.create(orderItems, { session });
+        
+        const tax = subtotal * 0.19;
+        const totalAmount = subtotal + tax;
+
+        order.items = createdItems.map(item => item._id) as any;
+        order.subtotal = subtotal;
+        order.tax = tax;
+        order.totalAmount = totalAmount;
+      }
+
+      // Actualizar otros campos
+      if (tableNumber !== undefined) order.tableNumber = tableNumber;
+      if (notes !== undefined) order.notes = notes;
+      if (paymentMethod !== undefined) order.paymentMethod = paymentMethod;
+      if (status !== undefined) order.status = status;
+
+      await order.save({ session });
+      await session.commitTransaction();
+
+      const updatedOrder = await Order.findById(order._id)
+        .populate('customer', 'name email')
+        .populate({
+          path: 'items',
+          populate: {
+            path: 'product',
+            select: 'name price image category'
+          }
+        });
+
+      res.status(200).json({
+        success: true,
+        message: 'Pedido actualizado exitosamente',
+        data: updatedOrder
+      });
+    } catch (error: any) {
+      await session.abortTransaction();
+      console.error('Error en updateOrder:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al actualizar pedido',
         error: error.message
       });
     } finally {
@@ -300,7 +522,14 @@ class OrderController {
         return;
       }
 
-      await order.updateStatus(status, req.user?._id.toString());
+      // Si el modelo tiene el método updateStatus, usarlo
+      if (typeof order.updateStatus === 'function') {
+        await order.updateStatus(status, req.user?._id.toString());
+      } else {
+        // Si no, actualizar manualmente
+        order.status = status;
+        await order.save();
+      }
 
       res.status(200).json({
         success: true,
@@ -337,7 +566,6 @@ class OrderController {
         return;
       }
 
-      // Verificar permisos
       if (req.user?.role === UserRole.CUSTOMER && 
           order.customer.toString() !== req.user._id.toString()) {
         res.status(403).json({
@@ -395,7 +623,6 @@ class OrderController {
         return;
       }
 
-      // Solo el cliente puede calificar su pedido
       if (order.customer.toString() !== req.user?._id.toString()) {
         res.status(403).json({
           success: false,
@@ -404,7 +631,6 @@ class OrderController {
         return;
       }
 
-      // Solo se puede calificar si está entregado
       if (order.status !== OrderStatus.DELIVERED) {
         res.status(400).json({
           success: false,
@@ -443,12 +669,27 @@ class OrderController {
    */
   static async getTodayStats(_req: AuthRequest, res: Response): Promise<void> {
     try {
-      const stats = await Order.getTodayStats();
-
-      res.status(200).json({
-        success: true,
-        data: stats
-      });
+      // Si el modelo tiene el método, usarlo
+      if (typeof Order.getTodayStats === 'function') {
+        const stats = await Order.getTodayStats();
+        res.status(200).json({
+          success: true,
+          data: stats
+        });
+      } else {
+        // Implementación básica
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const count = await Order.countDocuments({
+          createdAt: { $gte: today }
+        });
+        
+        res.status(200).json({
+          success: true,
+          data: { todayOrders: count }
+        });
+      }
     } catch (error: any) {
       console.error('Error en getTodayStats:', error);
       res.status(500).json({
@@ -478,7 +719,6 @@ class OrderController {
         return;
       }
 
-      // Verificar permisos
       if (req.user?.role === UserRole.CUSTOMER && 
           order.customer.toString() !== req.user._id.toString()) {
         res.status(403).json({
@@ -488,7 +728,6 @@ class OrderController {
         return;
       }
 
-      // Solo se pueden cancelar pedidos pendientes o confirmados
       if (![OrderStatus.PENDING, OrderStatus.CONFIRMED].includes(order.status)) {
         res.status(400).json({
           success: false,
@@ -497,7 +736,12 @@ class OrderController {
         return;
       }
 
-      await order.updateStatus(OrderStatus.CANCELLED);
+      if (typeof order.updateStatus === 'function') {
+        await order.updateStatus(OrderStatus.CANCELLED);
+      } else {
+        order.status = OrderStatus.CANCELLED;
+        await order.save();
+      }
 
       res.status(200).json({
         success: true,
