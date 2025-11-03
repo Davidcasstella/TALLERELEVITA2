@@ -69,7 +69,12 @@ class App {
     }));
 
     // CORS - Permitir todas las solicitudes
-    this.app.use(cors());
+        this.app.use(cors({
+        origin: process.env.FRONTEND_URL || '*',
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+        allowedHeaders: ['Content-Type', 'Authorization']
+        }));
 
     // Logging de peticiones HTTP
     this.app.use(morgan('dev'));
