@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Restaurante</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .categories-body {
+            background: #f8f9fa;
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .categories-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 300;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: block;
+        }
+
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .controls-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .search-input {
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .category-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .category-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .category-card-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .category-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .category-info {
+            flex: 1;
+        }
+
+        .category-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .category-products {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .category-card-content {
+            padding: 20px;
+        }
+
+        .category-description {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .category-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .meta-label {
+            font-size: 0.8rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .meta-value {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .category-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .access-denied {
+            text-align: center;
+            padding: 60px 20px;
+            color: #721c24;
+            background: #f8d7da;
+            border-radius: 12px;
+            margin: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .header-stats {
+                justify-content: center;
+            }
+
+            .categories-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .category-meta {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="categories-body">
+    <div class="categories-header">
+        <div class="header-content">
+            <h1 class="header-title">Gestión de Categorías</h1>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <span class="stat-number" id="totalCategories">0</span>
+                    <span>Total</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="activeCategories">0</span>
+                    <span>Activas</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="totalProducts">0</span>
+                    <span>Productos</span>
+                </div>
+            </div>
+            <button class="btn btn-secondary btn-small" data-action="go-back">← Volver</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="accessCheck"></div>
+
+        <!-- Controles de búsqueda y acciones -->
+        <div class="controls-section" id="controlsSection">
+            <div class="controls-grid">
+                <input type="text" class="search-input" id="searchInput" placeholder="Buscar categorías...">
+                <button class="btn btn-primary btn-small" id="refreshBtn">🔄 Actualizar</button>
+                <button class="btn btn-primary btn-small" data-action="add-category">+ Nueva Categoría</button>
+            </div>
+        </div>
+
+        <!-- Lista de categorías -->
+        <div id="categoriesContainer">
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Cargando categorías...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/dist/app.js"></script>
+    <script>
+        let categories = [];
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            const currentUser = appUtils.getCurrentUser();
+            if (!currentUser) {
+                window.location.href = '/login';
+                return;
+            }
+
+            // Verificar que tenga permisos (admin o chef)
+            if (!['admin', 'chef'].includes(currentUser.role)) {
+                showAccessDenied();
+                return;
+            }
+
+            await loadCategories();
+            setupEventListeners();
+        });
+
+        // Mostrar acceso denegado
+        function showAccessDenied() {
+            document.getElementById('accessCheck').innerHTML = `
+                <div class="access-denied">
+                    <h3>Acceso Denegado</h3>
+                    <p>Solo los administradores y chefs pueden gestionar categorías.</p>
+                    <button class="btn btn-primary" onclick="goBack()">Volver al Dashboard</button>
+                </div>
+            `;
+            document.getElementById('categoriesContainer').innerHTML = '';
+            document.getElementById('controlsSection').style.display = 'none';
+        }
+
+        // Cargar categorías
+        async function loadCategories() {
+            try {
+                const response = await appUtils.apiRequest('/categories');
+                if (response.success) {
+                    categories = response.data || response.categories || [];
+                    renderCategories();
+                    updateStats();
+                }
+            } catch (error) {
+                console.error('Error cargando categorías:', error);
+                showError('Error al cargar categorías: ' + error.message);
+            }
+        }
+
+        // Renderizar categorías
+        function renderCategories() {
+            const container = document.getElementById('categoriesContainer');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            let filteredCategories = categories;
+            if (searchTerm) {
+                filteredCategories = categories.filter(category => 
+                    category.name.toLowerCase().includes(searchTerm) ||
+                    (category.description && category.description.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            if (filteredCategories.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>${searchTerm ? 'No se encontraron categorías' : 'No hay categorías'}</h3>
+                        <p>${searchTerm ? 'No hay categorías que coincidan con la búsqueda.' : 'Comienza creando tu primera categoría de productos.'}</p>
+                        ${canManageCategories() ? '<button class="btn btn-primary" data-action="add-category">Crear Primera Categoría</button>' : ''}
+                    </div>
+                `;
+                return;
+            }
+
+            const grid = document.createElement('div');
+            grid.className = 'categories-grid';
+
+            filteredCategories.forEach(category => {
+                const card = createCategoryCard(category);
+                grid.appendChild(card);
+            });
+
+            container.innerHTML = '';
+            container.appendChild(grid);
+        }
+
+        // Crear tarjeta de categoría
+        function createCategoryCard(category) {
+            const div = document.createElement('div');
+            div.className = 'category-card';
+            
+            const createdDate = category.createdAt ? new Date(category.createdAt).toLocaleDateString('es-ES') : 'N/A';
+            const updatedDate = category.updatedAt ? new Date(category.updatedAt).toLocaleDateString('es-ES') : 'N/A';
+            const productCount = category.productCount || 0;
+            const isActive = category.isActive !== false;
+
+            // Icono basado en el nombre de la categoría
+            const categoryIcon = getCategoryIcon(category.name);
+
+            div.innerHTML = `
+                <div class="category-card-header">
+                    <div class="category-icon">${categoryIcon}</div>
+                    <div class="category-info">
+                        <div class="category-name">${category.name}</div>
+                        <div class="category-products">${productCount} productos</div>
+                    </div>
+                </div>
+                
+                <div class="category-card-content">
+                    <div class="category-description">
+                        ${category.description || 'Sin descripción disponible.'}
+                    </div>
+
+                    <div class="category-meta">
+                        <div class="meta-item">
+                            <span class="meta-label">Creada</span>
+                            <span class="meta-value">${createdDate}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Actualizada</span>
+                            <span class="meta-value">${updatedDate}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Estado</span>
+                            <span class="meta-value ${isActive ? 'text-success' : 'text-danger'}">
+                                ${isActive ? '🟢 Activa' : '🔴 Inactiva'}
+                            </span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">ID</span>
+                            <span class="meta-value">${category._id.slice(-8)}</span>
+                        </div>
+                    </div>
+
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" data-action="view-category" data-id="${category._id}">
+                            Ver Detalle
+                        </button>
+                        ${canManageCategories() ? `
+                            <button class="btn btn-primary btn-small" data-action="edit-category" data-id="${category._id}">
+                                Editar
+                            </button>
+                            ${canDeleteCategories() && productCount === 0 ? `
+                                <button class="btn btn-secondary btn-small" data-action="delete-category" data-id="${category._id}" data-name="${category.name}">
+                                    Eliminar
+                                </button>
+                            ` : ''}
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            return div;
+        }
+
+        // Event listeners
+        function setupEventListeners() {
+            document.getElementById('searchInput').addEventListener('input', debounce(renderCategories, 300));
+            document.getElementById('refreshBtn').addEventListener('click', loadCategories);
+            
+            document.addEventListener('click', function(e) {
+                const action = e.target.getAttribute('data-action');
+                
+                if (action === 'go-back') {
+                    goBack();
+                } else if (action === 'add-category') {
+                    addCategory();
+                } else if (action && e.target.hasAttribute('data-id')) {
+                    const categoryId = e.target.getAttribute('data-id');
+                    const categoryName = e.target.getAttribute('data-name');
+                    handleCategoryAction(action, categoryId, categoryName);
+                }
+            });
+        }
+
+        // Manejar acciones de categorías
+        async function handleCategoryAction(action, categoryId, categoryName) {
+            const category = categories.find(c => c._id === categoryId);
+            if (!category && action !== 'delete-category') return;
+
+            try {
+                switch(action) {
+                    case 'view-category':
+                        viewCategoryDetail(category);
+                        break;
+                        
+                    case 'edit-category':
+                        window.location.href = `/categories/edit/${categoryId}`;
+                        break;
+                        
+                    case 'delete-category':
+                        await deleteCategory(categoryId, categoryName);
+                        break;
+                }
+            } catch (error) {
+                appUtils.showAlert('categoriesContainer', 'Error: ' + error.message, 'error');
+            }
+        }
+
+        // Ver detalle de la categoría
+        function viewCategoryDetail(category) {
+            const createdDate = category.createdAt ? new Date(category.createdAt).toLocaleDateString('es-ES') : 'N/A';
+            const updatedDate = category.updatedAt ? new Date(category.updatedAt).toLocaleDateString('es-ES') : 'N/A';
+            const productCount = category.productCount || 0;
+            const isActive = category.isActive !== false;
+
+            alert(`
+DETALLE DE LA CATEGORÍA
+
+Nombre: ${category.name}
+Descripción: ${category.description || 'Sin descripción'}
+Estado: ${isActive ? 'Activa' : 'Inactiva'}
+Productos asociados: ${productCount}
+ID: ${category._id}
+
+Fechas:
+Creada: ${createdDate}
+Actualizada: ${updatedDate}
+            `.trim());
+        }
+
+        // Eliminar categoría
+        async function deleteCategory(categoryId, categoryName) {
+            if (!confirm(`¿Estás seguro de eliminar la categoría "${categoryName}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await appUtils.apiRequest(`/categories/${categoryId}`, 'DELETE');
+                if (response.success) {
+                    appUtils.showAlert('categoriesContainer', 'Categoría eliminada exitosamente', 'success');
+                    await loadCategories();
+                }
+            } catch (error) {
+                appUtils.showAlert('categoriesContainer', 'Error al eliminar: ' + error.message, 'error');
+            }
+        }
+
+        // Agregar nueva categoría
+        function addCategory() {
+            window.location.href = '/categories/new';
+        }
+
+        // Verificar permisos
+        function canManageCategories() {
+            const currentUser = appUtils.getCurrentUser();
+            return currentUser && ['admin', 'chef'].includes(currentUser.role);
+        }
+
+        function canDeleteCategories() {
+            const currentUser = appUtils.getCurrentUser();
+            return currentUser && currentUser.role === 'admin';
+        }
+
+        // Obtener icono para categoría
+        function getCategoryIcon(categoryName) {
+            const name = categoryName.toLowerCase();
+            
+            if (name.includes('bebida') || name.includes('drink') || name.includes('jugo')) return '🥤';
+            if (name.includes('pizza')) return '🍕';
+            if (name.includes('hamburguesa') || name.includes('burger')) return '🍔';
+            if (name.includes('postre') || name.includes('dulce')) return '🍰';
+            if (name.includes('ensalada') || name.includes('salad')) return '🥗';
+            if (name.includes('pasta') || name.includes('espagueti')) return '🍝';
+            if (name.includes('sopa')) return '🍲';
+            if (name.includes('carne') || name.includes('pollo')) return '🍖';
+            if (name.includes('pescado') || name.includes('mariscos')) return '🐟';
+            if (name.includes('vegetariano') || name.includes('vegano')) return '🥬';
+            if (name.includes('desayuno')) return '🍳';
+            if (name.includes('entrada') || name.includes('aperitivo')) return '🥪';
+            
+            return '🍽️';
+        }
+
+        // Actualizar estadísticas
+        function updateStats() {
+            const total = categories.length;
+            const active = categories.filter(c => c.isActive !== false).length;
+            const totalProducts = categories.reduce((sum, c) => sum + (c.productCount || 0), 0);
+
+            document.getElementById('totalCategories').textContent = total;
+            document.getElementById('activeCategories').textContent = active;
+            document.getElementById('totalProducts').textContent = totalProducts;
+        }
+
+        // Funciones de utilidad
+        function showError(message) {
+            document.getElementById('categoriesContainer').innerHTML = `
+                <div class="empty-state">
+                    <h3>Error</h3>
+                    <p>${message}</p>
+                    <button class="btn btn-primary" onclick="loadCategories()">Reintentar</button>
+                </div>
+            `;
+        }
+
+        function goBack() {
+            window.location.href = '/dashboard';
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+    </script>
+</body>
+</html>

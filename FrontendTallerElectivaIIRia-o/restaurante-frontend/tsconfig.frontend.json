@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    /* Configuración específica para frontend */
+    "target": "ES2020",
+    "module": "None",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "outDir": "./public/js/dist",
+    "rootDir": "./src/frontend",
+    
+    /* Strict Type-Checking - RELAJADO PARA DEBUGGING */
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    
+    /* Additional Checks - DESACTIVADO TEMPORALMENTE */
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": false,
+    
+    /* Module Resolution */
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    
+    /* Advanced Options */
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "removeComments": false,
+    "preserveConstEnums": true
+  },
+  "include": [
+    "src/frontend/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "public/js/dist",
+    "**/*.spec.ts"
+  ]
+}

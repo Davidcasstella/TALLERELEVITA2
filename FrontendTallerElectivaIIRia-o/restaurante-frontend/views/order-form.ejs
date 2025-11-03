@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Nuevo Pedido - Restaurante</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .form-body { background: #f8f9fa; min-height: 100vh; padding: 0; }
+        .form-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header-content { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .main-content { max-width: 800px; margin: 0 auto; padding: 30px 20px; }
+        .form-card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .form-section { margin-bottom: 30px; }
+        .form-section h3 { margin-bottom: 20px; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .form-group { display: flex; flex-direction: column; gap: 8px; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        .form-group input, .form-group select, .form-group textarea { 
+            padding: 12px 15px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 1rem; 
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #667eea; outline: none; }
+        .products-section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .product-item { 
+            display: grid; grid-template-columns: 2fr 1fr 1fr 2fr auto; gap: 15px; align-items: center; 
+            padding: 15px; background: white; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .product-item select, .product-item input, .product-item textarea { 
+            padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; 
+        }
+        .btn-remove { background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; }
+        .btn-add-product { background: #28a745; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; width: 100%; }
+        .total-section { background: #667eea; color: white; padding: 15px 20px; border-radius: 8px; text-align: right; margin-bottom: 20px; }
+        .form-actions { display: flex; gap: 15px; justify-content: flex-end; padding-top: 20px; border-top: 1px solid #eee; }
+        .error-message { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 9999; }
+        .loading-content { background: white; padding: 30px; border-radius: 12px; text-align: center; }
+        @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } .product-item { grid-template-columns: 1fr; gap: 10px; } }
+    </style>
+</head>
+<body class="form-body">
+    <div class="form-header">
+        <div class="header-content">
+            <h1>Crear Nuevo Pedido</h1>
+            <button class="btn btn-secondary btn-small" onclick="goBack()">← Volver</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="form-card">
+            <form id="orderForm">
+                <div class="form-section">
+                    <h3>Información del Pedido</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="tableNumber">Mesa *</label>
+                            <select id="tableNumber" name="tableNumber" required>
+                                <option value="">Seleccionar mesa</option>
+                                <option value="1">Mesa 1</option>
+                                <option value="2">Mesa 2</option>
+                                <option value="3">Mesa 3</option>
+                                <option value="4">Mesa 4</option>
+                                <option value="5">Mesa 5</option>
+                                <option value="6">Mesa 6</option>
+                                <option value="7">Mesa 7</option>
+                                <option value="8">Mesa 8</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="paymentMethod">Método de Pago *</label>
+                            <select id="paymentMethod" name="paymentMethod" required>
+                                <option value="">Seleccionar método</option>
+                                <option value="cash">Efectivo</option>
+                                <option value="card">Tarjeta</option>
+                                <option value="transfer">Transferencia</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="notes">Notas del pedido</label>
+                            <textarea id="notes" name="notes" rows="3" placeholder="Instrucciones especiales..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Productos del Pedido</h3>
+                    <div id="errorMessage" class="error-message" style="display: none;"></div>
+                    <div class="products-section">
+                        <div id="productsContainer"></div>
+                        <button type="button" class="btn-add-product" onclick="addProductRow()">+ Agregar Producto</button>
+                    </div>
+                </div>
+
+                <div class="total-section">
+                    <h4>Total: $<span id="orderTotal">0</span></h4>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="goBack()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Pedido</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p>Creando pedido...</p>
+        </div>
+    </div>
+
+    <script src="/js/dist/app.js"></script>
+    <script>
+        let availableProducts = [];
+        let productCounter = 0;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = appUtils.getCurrentUser();
+            if (!user) {
+                window.location.href = '/login';
+                return;
+            }
+            
+            console.log('Usuario autenticado:', user);
+            await loadProducts();
+            addProductRow();
+            document.getElementById('orderForm').addEventListener('submit', handleSubmit);
+        });
+
+        async function loadProducts() {
+            try {
+                console.log('Cargando productos...');
+                const response = await appUtils.getProducts({ available: 'true' });
+                console.log('Respuesta de productos:', response);
+                
+                if (response?.success) {
+                    availableProducts = response.data.filter(p => p.isAvailable !== false);
+                    console.log('Productos cargados:', availableProducts.length);
+                } else {
+                    console.warn('No se pudieron cargar productos, usando ejemplos');
+                    availableProducts = getExampleProducts();
+                }
+                
+                if (availableProducts.length === 0) {
+                    showMessage('⚠️ No hay productos disponibles. Usando productos de ejemplo.');
+                    availableProducts = getExampleProducts();
+                }
+            } catch (error) {
+                console.error('Error cargando productos:', error);
+                availableProducts = getExampleProducts();
+                showMessage('⚠️ Error al cargar productos. Usando productos de ejemplo.');
+            }
+        }
+
+        function getExampleProducts() {
+            return [
+                { _id: 'example1', name: 'Hamburguesa Clásica', price: 15000, isAvailable: true },
+                { _id: 'example2', name: 'Pizza Margarita', price: 20000, isAvailable: true },
+                { _id: 'example3', name: 'Ensalada César', price: 12000, isAvailable: true },
+                { _id: 'example4', name: 'Papas Fritas', price: 8000, isAvailable: true },
+                { _id: 'example5', name: 'Refresco', price: 5000, isAvailable: true }
+            ];
+        }
+
+        function addProductRow() {
+            productCounter++;
+            const container = document.getElementById('productsContainer');
+            const row = document.createElement('div');
+            row.className = 'product-item';
+            row.id = `product-${productCounter}`;
+            
+            let options = '<option value="">Seleccionar producto</option>';
+            availableProducts.forEach(p => {
+                options += `<option value="${p._id}" data-price="${p.price}">${p.name} - $${p.price.toLocaleString()}</option>`;
+            });
+            
+            row.innerHTML = `
+                <select name="product" required onchange="updatePrice(${productCounter})">${options}</select>
+                <input type="number" name="quantity" min="1" value="1" required onchange="updatePrice(${productCounter})">
+                <span class="item-price">$0</span>
+                <textarea name="specialInstructions" placeholder="Instrucciones..." rows="2"></textarea>
+                <button type="button" class="btn-remove" onclick="removeRow(${productCounter})">×</button>
+            `;
+            container.appendChild(row);
+        }
+
+        function removeRow(id) {
+            const row = document.getElementById(`product-${id}`);
+            if (row) {
+                row.remove();
+                updateTotal();
+            }
+        }
+
+        function updatePrice(rowId) {
+            const row = document.getElementById(`product-${rowId}`);
+            if (!row) return;
+            
+            const select = row.querySelector('select[name="product"]');
+            const quantity = parseInt(row.querySelector('input[name="quantity"]').value) || 1;
+            const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+            row.querySelector('.item-price').textContent = `$${(price * quantity).toLocaleString()}`;
+            updateTotal();
+        }
+
+        function updateTotal() {
+            let total = 0;
+            document.querySelectorAll('.product-item').forEach(row => {
+                const select = row.querySelector('select[name="product"]');
+                const quantity = parseInt(row.querySelector('input[name="quantity"]').value) || 1;
+                if (select && select.value) {
+                    const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+                    total += price * quantity;
+                }
+            });
+            document.getElementById('orderTotal').textContent = total.toLocaleString();
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            
+            console.log('Iniciando envío del formulario...');
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            
+            try {
+                const formData = new FormData(e.target);
+                const tableNumber = formData.get('tableNumber');
+                const paymentMethod = formData.get('paymentMethod');
+                const notes = formData.get('notes') || '';
+                
+                // Validar mesa
+                if (!tableNumber) {
+                    throw new Error('Debe seleccionar una mesa');
+                }
+                
+                // Validar método de pago
+                if (!paymentMethod) {
+                    throw new Error('Debe seleccionar un método de pago');
+                }
+                
+                // Recolectar items
+                const items = [];
+                const productRows = document.querySelectorAll('.product-item');
+                
+                console.log('Procesando', productRows.length, 'productos...');
+                
+                productRows.forEach((row, index) => {
+                    const select = row.querySelector('select[name="product"]');
+                    const quantityInput = row.querySelector('input[name="quantity"]');
+                    const instructionsTextarea = row.querySelector('textarea[name="specialInstructions"]');
+                    
+                    const productId = select?.value;
+                    const quantity = parseInt(quantityInput?.value || 0);
+                    
+                    if (productId && quantity > 0) {
+                        const selectedOption = select.selectedOptions[0];
+                        const price = parseFloat(selectedOption?.dataset?.price || 0);
+                        
+                        items.push({
+                            product: productId,
+                            quantity: quantity,
+                            specialInstructions: instructionsTextarea?.value?.trim() || ''
+                        });
+                        
+                        console.log(`Item ${index + 1}:`, {
+                            product: productId,
+                            quantity,
+                            price,
+                            specialInstructions: instructionsTextarea?.value?.trim() || ''
+                        });
+                    }
+                });
+                
+                // Validar que haya al menos un producto
+                if (items.length === 0) {
+                    throw new Error('Debe agregar al menos un producto al pedido');
+                }
+                
+                // Crear objeto del pedido
+                const orderData = {
+                    items: items,
+                    tableNumber: parseInt(tableNumber),
+                    notes: notes,
+                    paymentMethod: paymentMethod
+                };
+                
+                console.log('📦 Datos del pedido a enviar:', JSON.stringify(orderData, null, 2));
+                
+                // Enviar pedido
+                const response = await appUtils.createOrder(orderData);
+                
+                console.log('✅ Respuesta del servidor:', response);
+                
+                if (response && response.success) {
+                    showMessage('✅ ¡Pedido creado exitosamente!', false);
+                    setTimeout(() => {
+                        window.location.href = '/orders';
+                    }, 1500);
+                } else {
+                    throw new Error(response?.message || 'Error desconocido al crear el pedido');
+                }
+            } catch (error) {
+                console.error('❌ Error en handleSubmit:', error);
+                showMessage('Error: ' + error.message, true);
+            } finally {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+        }
+
+        function showMessage(message, isError = true) {
+            const div = document.getElementById('errorMessage');
+            div.textContent = message;
+            div.style.display = 'block';
+            div.style.background = isError ? '#f8d7da' : '#d4edda';
+            div.style.color = isError ? '#721c24' : '#155724';
+            div.style.border = isError ? '1px solid #f5c6cb' : '1px solid #c3e6cb';
+            
+            // Scroll al mensaje
+            div.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Ocultar después de 5 segundos si es éxito
+            if (!isError) {
+                setTimeout(() => {
+                    div.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function goBack() {
+            if (confirm('¿Salir? Se perderán los datos no guardados.')) {
+                window.location.href = '/orders';
+            }
+        }
+    </script>
+</body>
+</html>
