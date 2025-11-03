@@ -51,7 +51,7 @@ class App {
           ],
           connectSrc: [
             "'self'",
-            "https://tallerelevita2-1.onrender.com",
+            "https://frontendtallerelectivaiiria-o.onrender.com",
             "http://localhost:3000"
           ],
           imgSrc: [
