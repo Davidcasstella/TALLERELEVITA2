@@ -39,7 +39,7 @@ const options: Options = {
         description: 'Servidor de desarrollo'
       },
       {
-        url: 'https://tallerelevita2-1.onrender.com',
+        url: 'https://restaurante-backend-wid2.onrender.com',
         description: 'Servidor de producción'
       }
     ],
